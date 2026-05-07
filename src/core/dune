@@ -1,0 +1,9 @@
+(library
+ (name causalis_core)
+ (public_name causalis.core)
+ (modules
+  value
+  signal
+  compiler
+    runtime)
+ (libraries decimal))
