@@ -34,7 +34,10 @@ let compile ~outputs =
           if not (valid_clock (Signal.Internal.clock node)) then raise_notrace Exit;
           (match Signal.Internal.operation node with
           | Signal.Internal.Const _ | Signal.Internal.Input _ -> ()
-          | Signal.Internal.Map { source; _ } -> visit source);
+          | Signal.Internal.Map { source; _ }
+          | Signal.Internal.Pre source -> visit source
+          | Signal.Internal.Init { source; _ }
+          | Signal.Internal.Scan { source; _ } -> visit source);
           schedule := node :: !schedule
         end
       in

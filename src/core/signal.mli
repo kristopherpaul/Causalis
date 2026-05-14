@@ -20,6 +20,9 @@ type 'a t
 val const : clock:Clock.t -> 'a -> 'a t
 val input : 'a Input.t -> 'a t
 val map : ('a -> 'b) -> 'a t -> 'b t
+val pre : 'a t -> 'a t
+val init : 'a -> 'a t -> 'a t
+val scan : init:'s -> step:('s -> 'a -> 's * 'b) -> 'a t -> 'b t
 val clock : 'a t -> Clock.t
 
 module Internal : sig
@@ -30,6 +33,13 @@ module Internal : sig
     | Const of Obj.t
     | Input of int
     | Map of { source : node; apply : Obj.t -> Obj.t }
+    | Pre of node
+    | Init of { initial : Obj.t; source : node }
+    | Scan of {
+        source : node;
+        initial_state : Obj.t;
+        step : Obj.t -> Obj.t -> Obj.t * Obj.t;
+      }
 
   val node : 'a t -> node
   val id : node -> node_id

@@ -18,4 +18,4 @@ module Reference_exec : sig
   val run : Compiler.Artifact.t -> Input_trace.t -> (Run.t, error) result
 end
 
-val values : 'a Compiler.Output.t -> Run.t -> 'a list
+val values : 'a Compiler.Output.t -> Run.t -> 'a option list

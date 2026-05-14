@@ -28,6 +28,13 @@ module Graph = struct
     | Const of Obj.t
     | Input of int
     | Map of { source : node; apply : Obj.t -> Obj.t }
+    | Pre of node
+    | Init of { initial : Obj.t; source : node }
+    | Scan of {
+        source : node;
+        initial_state : Obj.t;
+        step : Obj.t -> Obj.t -> Obj.t * Obj.t;
+      }
 
   and node = { id : node_id; clock : Clock.t; operation : operation }
 
@@ -55,6 +62,32 @@ let map f signal =
   let apply value = Obj.repr (f (Obj.obj value)) in
   { node = Graph.map ~clock:(Graph.clock signal.node) ~source:signal.node ~apply }
 
+let pre signal =
+  { node = Graph.make (Graph.clock signal.node) (Graph.Pre signal.node) }
+
+let init initial signal =
+  {
+    node =
+      Graph.make (Graph.clock signal.node)
+        (Graph.Init { initial = Obj.repr initial; source = signal.node });
+  }
+
+let scan ~init:initial_state ~step signal =
+  let erased_step state input =
+    let next_state, output = step (Obj.obj state) (Obj.obj input) in
+    Obj.repr next_state, Obj.repr output
+  in
+  {
+    node =
+      Graph.make (Graph.clock signal.node)
+        (Graph.Scan
+           {
+             source = signal.node;
+             initial_state = Obj.repr initial_state;
+             step = erased_step;
+           });
+  }
+
 let clock signal = Graph.clock signal.node
 
 module Internal = struct
@@ -64,6 +97,13 @@ module Internal = struct
     | Const of Obj.t
     | Input of int
     | Map of { source : node; apply : Obj.t -> Obj.t }
+    | Pre of node
+    | Init of { initial : Obj.t; source : node }
+    | Scan of {
+        source : node;
+        initial_state : Obj.t;
+        step : Obj.t -> Obj.t -> Obj.t * Obj.t;
+      }
 
   let node signal = signal.node
   let id = Graph.id

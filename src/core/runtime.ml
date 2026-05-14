@@ -22,7 +22,7 @@ module Input_trace = struct
 end
 
 module Run = struct
-  type t = { outputs : (Signal.Internal.node_id * Obj.t array) list }
+  type t = { outputs : (Signal.Internal.node_id * Obj.t option array) list }
 
   let create outputs = { outputs }
 
@@ -44,15 +44,37 @@ module Reference_exec = struct
     | Some length ->
         let node_values = Hashtbl.create (List.length (Compiler.Artifact.nodes artifact)) in
         let output_values = Hashtbl.create 8 in
+        let scan_states = Hashtbl.create 8 in
         let evaluate instant node =
           match Signal.Internal.operation node with
-          | Signal.Internal.Const value -> value
+          | Signal.Internal.Const value -> Some value
           | Signal.Internal.Input input_id ->
               (match Input_trace.value inputs ~input_id ~instant with
-              | Some value -> value
+              | Some value -> Some value
               | None -> raise (Invalid_argument (string_of_int input_id)))
           | Signal.Internal.Map { source; apply } ->
-              apply (Hashtbl.find node_values (Signal.Internal.id source)).(instant)
+            Option.map apply
+            (Hashtbl.find node_values (Signal.Internal.id source)).(instant)
+          | Signal.Internal.Pre source ->
+            if instant = 0 then None
+            else (Hashtbl.find node_values (Signal.Internal.id source)).(instant - 1)
+          | Signal.Internal.Init { initial; source } ->
+            if instant = 0 then Some initial
+            else (Hashtbl.find node_values (Signal.Internal.id source)).(instant)
+          | Signal.Internal.Scan { source; initial_state; step } ->
+            let state =
+            match Hashtbl.find_opt scan_states (Signal.Internal.id node) with
+            | Some state -> state
+            | None ->
+              Hashtbl.add scan_states (Signal.Internal.id node) initial_state;
+              initial_state
+            in
+            (match (Hashtbl.find node_values (Signal.Internal.id source)).(instant) with
+            | None -> None
+            | Some input ->
+              let next_state, output = step state input in
+              Hashtbl.replace scan_states (Signal.Internal.id node) next_state;
+              Some output)
         in
         try
           List.iter
@@ -79,4 +101,4 @@ let values output run =
   Run.output_values run
     ~node_id:(Signal.Internal.id (Signal.Internal.node (Compiler.Output.signal output)))
   |> Array.to_list
-  |> List.map Obj.obj
+  |> List.map (Option.map Obj.obj)
