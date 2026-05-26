@@ -1,7 +1,9 @@
 (test
  (name value_test)
+ (modules value_test)
  (libraries causalis_core alcotest))
 
 (test
  (name walking_skeleton_test)
+ (modules walking_skeleton_test)
  (libraries causalis_core decimal alcotest))
