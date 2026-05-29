@@ -35,6 +35,7 @@ module Graph = struct
         initial_state : Obj.t;
         step : Obj.t -> Obj.t -> Obj.t * Obj.t;
       }
+    | Feedback of node option ref
 
   and node = { id : node_id; clock : Clock.t; operation : operation }
 
@@ -88,6 +89,13 @@ let scan ~init:initial_state ~step signal =
            });
   }
 
+let feedback ~clock build =
+  let target = ref None in
+  let node = Graph.make clock (Graph.Feedback target) in
+  let body = (build { node } : 'a t) in
+  target := Some body.node;
+  { node }
+
 let clock signal = Graph.clock signal.node
 
 module Internal = struct
@@ -104,6 +112,7 @@ module Internal = struct
         initial_state : Obj.t;
         step : Obj.t -> Obj.t -> Obj.t * Obj.t;
       }
+    | Feedback of node option ref
 
   let node signal = signal.node
   let id = Graph.id

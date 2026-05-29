@@ -41,10 +41,28 @@ module Reference_exec = struct
   let run artifact inputs =
     match Input_trace.length inputs with
     | None -> Error Input_length_mismatch
+    | Some 0 -> Error Empty_input_trace
     | Some length ->
         let node_values = Hashtbl.create (List.length (Compiler.Artifact.nodes artifact)) in
-        let output_values = Hashtbl.create 8 in
-        let scan_states = Hashtbl.create 8 in
+        List.iter
+          (fun node ->
+            Hashtbl.add (node_values) (Signal.Internal.id node) (Array.make length None))
+          (Compiler.Artifact.nodes artifact);
+        let state_values = Array.make (List.length (Compiler.Artifact.state_layout artifact)) None in
+        let state_slots = Hashtbl.create (Array.length state_values) in
+        List.iter
+          (fun slot -> Hashtbl.add state_slots slot.Compiler.node_id slot.Compiler.index)
+          (Compiler.Artifact.state_layout artifact);
+        let current_value node instant =
+          (Hashtbl.find node_values (Signal.Internal.id node)).(instant)
+        in
+        let set_current_value node instant value =
+          (Hashtbl.find node_values (Signal.Internal.id node)).(instant) <- value
+        in
+        let state_value node = state_values.(Hashtbl.find state_slots (Signal.Internal.id node)) in
+        let set_state_value node value =
+          state_values.(Hashtbl.find state_slots (Signal.Internal.id node)) <- value
+        in
         let evaluate instant node =
           match Signal.Internal.operation node with
           | Signal.Internal.Const value -> Some value
@@ -53,41 +71,48 @@ module Reference_exec = struct
               | Some value -> Some value
               | None -> raise (Invalid_argument (string_of_int input_id)))
           | Signal.Internal.Map { source; apply } ->
-            Option.map apply
-            (Hashtbl.find node_values (Signal.Internal.id source)).(instant)
-          | Signal.Internal.Pre source ->
-            if instant = 0 then None
-            else (Hashtbl.find node_values (Signal.Internal.id source)).(instant - 1)
+              Option.map apply (current_value source instant)
+          | Signal.Internal.Pre _ -> state_value node
           | Signal.Internal.Init { initial; source } ->
-            if instant = 0 then Some initial
-            else (Hashtbl.find node_values (Signal.Internal.id source)).(instant)
+              if instant = 0 then Some initial else current_value source instant
           | Signal.Internal.Scan { source; initial_state; step } ->
-            let state =
-            match Hashtbl.find_opt scan_states (Signal.Internal.id node) with
-            | Some state -> state
-            | None ->
-              Hashtbl.add scan_states (Signal.Internal.id node) initial_state;
-              initial_state
-            in
-            (match (Hashtbl.find node_values (Signal.Internal.id source)).(instant) with
-            | None -> None
-            | Some input ->
-              let next_state, output = step state input in
-              Hashtbl.replace scan_states (Signal.Internal.id node) next_state;
-              Some output)
+              let state =
+                match state_value node with
+                | Some state -> state
+                | None ->
+                    set_state_value node (Some initial_state);
+                    initial_state
+              in
+              (match current_value source instant with
+              | None -> None
+              | Some input ->
+                  let next_state, output = step state input in
+                  set_state_value node (Some next_state);
+                  Some output)
+          | Signal.Internal.Feedback target ->
+              (match !target with
+              | Some target -> current_value target instant
+              | None -> raise (Invalid_argument "uninitialized feedback"))
         in
         try
-          List.iter
-            (fun node ->
-              let values = Array.init length (fun instant -> evaluate instant node) in
-              Hashtbl.replace node_values (Signal.Internal.id node) values;
-              Hashtbl.replace output_values (Signal.Internal.id node) values)
-            (Compiler.Artifact.nodes artifact);
+          for instant = 0 to length - 1 do
+            List.iter
+              (fun plan_node ->
+                let value = evaluate instant plan_node.Compiler.node in
+                set_current_value plan_node.Compiler.node instant value)
+              (Compiler.Artifact.runtime_plan artifact);
+            List.iter
+              (fun node ->
+                match Signal.Internal.operation node with
+                | Signal.Internal.Pre source -> set_state_value node (current_value source instant)
+                | _ -> ())
+              (Compiler.Artifact.nodes artifact)
+          done;
           let outputs =
             List.filter_map
               (fun (Compiler.Output.Pack output) ->
                 let node_id = Signal.Internal.id (Signal.Internal.node (Compiler.Output.signal output)) in
-                match Hashtbl.find_opt output_values node_id with
+                match Hashtbl.find_opt node_values node_id with
                 | Some values -> Some (node_id, values)
                 | None -> None)
               (Compiler.Artifact.outputs artifact)
