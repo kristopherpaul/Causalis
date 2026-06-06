@@ -85,10 +85,77 @@ let test_scan_pipeline () =
     [Some "0"; Some "1"; Some "3"; Some "6"] actual;
   Alcotest.(check (list (option string))) "scan state is per run" actual (run_once ())
 
+let test_compiled_plan () =
+  let input = Signal.Input.create ~name:"anchor" ~clock:Signal.Clock.logical () in
+  let source = Signal.input input in
+  let output = Compiler.Output.create ~name:"mapped" (Signal.map succ source) in
+  let artifact =
+    match Compiler.compile ~outputs:[Compiler.Output.pack output] with
+    | Ok artifact -> artifact
+    | Error _ -> Alcotest.fail "compilation failed"
+  in
+  let schedule =
+    List.map Signal.Internal.id (Compiler.Artifact.schedule artifact)
+  in
+  let repeated_artifact =
+    match Compiler.compile ~outputs:[Compiler.Output.pack output] with
+    | Ok artifact -> artifact
+    | Error _ -> Alcotest.fail "repeated compilation failed"
+  in
+  let repeated_schedule =
+    List.map Signal.Internal.id (Compiler.Artifact.schedule repeated_artifact)
+  in
+  Alcotest.(check (list int)) "deterministic schedule" schedule repeated_schedule;
+  Alcotest.(check int) "one dependency" 1
+    (List.length (Compiler.Artifact.dependencies artifact));
+  Alcotest.(check int) "no state slots" 0
+    (List.length (Compiler.Artifact.state_layout artifact))
+
+let test_delayed_feedback () =
+  let anchor = Signal.Input.create ~name:"anchor" ~clock:Signal.Clock.logical () in
+  let feedback =
+    Signal.feedback ~clock:Signal.Clock.logical (fun previous ->
+        Signal.map (fun value -> value + 1)
+          (Signal.init 0 (Signal.pre previous)))
+  in
+  let output = Compiler.Output.create ~name:"feedback" feedback in
+  let artifact =
+    match Compiler.compile ~outputs:[Compiler.Output.pack output] with
+    | Ok artifact -> artifact
+    | Error _ -> Alcotest.fail "delayed feedback should compile"
+  in
+  let inputs = Runtime.Input_trace.of_values anchor [0; 0; 0; 0] in
+  let run =
+    match Runtime.Reference_exec.run artifact inputs with
+    | Ok run -> run
+    | Error _ -> Alcotest.fail "delayed feedback should execute"
+  in
+  Alcotest.(check (list (option string))) "delayed feedback values"
+    [Some "1"; Some "2"; Some "3"; Some "4"]
+    (int_strings (Runtime.values output run));
+  Alcotest.(check int) "feedback has one delay slot" 1
+    (List.length (Compiler.Artifact.state_layout artifact))
+
+let test_instantaneous_feedback_rejected () =
+  let feedback =
+    Signal.feedback ~clock:Signal.Clock.logical (fun previous ->
+        Signal.map (fun value -> value + 1) previous)
+  in
+  let output = Compiler.Output.create ~name:"invalid_feedback" feedback in
+  match Compiler.compile ~outputs:[Compiler.Output.pack output] with
+  | Error (Compiler.Instantaneous_cycle _) -> ()
+  | Error _ -> Alcotest.fail "wrong compiler error for instantaneous feedback"
+  | Ok _ -> Alcotest.fail "instantaneous feedback should be rejected"
+
 let () =
   Alcotest.run "walking_skeleton"
-    [ "stage 1-2",
-      [ Alcotest.test_case "price map" `Quick test_price_map_pipeline;
-        Alcotest.test_case "pre" `Quick test_pre_pipeline;
+    [ "signal construction",
+      [ Alcotest.test_case "price map" `Quick test_price_map_pipeline ];
+      "temporal semantics",
+      [ Alcotest.test_case "pre" `Quick test_pre_pipeline;
         Alcotest.test_case "init" `Quick test_init_pipeline;
-        Alcotest.test_case "scan" `Quick test_scan_pipeline ] ]
+        Alcotest.test_case "scan" `Quick test_scan_pipeline ];
+      "compiled semantic machine",
+      [ Alcotest.test_case "compiled plan" `Quick test_compiled_plan;
+        Alcotest.test_case "delayed feedback" `Quick test_delayed_feedback;
+        Alcotest.test_case "instantaneous feedback" `Quick test_instantaneous_feedback_rejected ] ]
