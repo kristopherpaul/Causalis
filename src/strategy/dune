@@ -1,0 +1,5 @@
+(library
+ (name causalis_strategy)
+ (public_name causalis.strategy)
+ (libraries causalis_core decimal)
+ (modules domain intent planner))
