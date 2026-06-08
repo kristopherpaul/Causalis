@@ -1,0 +1,5 @@
+(library
+ (name causalis_accounting)
+ (public_name causalis.accounting)
+ (libraries causalis_core causalis_strategy causalis_execution decimal)
+ (modules accounting_model))
