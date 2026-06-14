@@ -1,0 +1,5 @@
+(library
+ (name causalis_run)
+ (public_name causalis.run)
+ (libraries causalis_core causalis_strategy causalis_execution causalis_accounting decimal)
+ (modules result coordinator))
