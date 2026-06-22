@@ -1,0 +1,4 @@
+(test
+ (name closed_loop_test)
+ (modules closed_loop_test)
+ (libraries causalis_core causalis_strategy causalis_execution causalis_accounting causalis_run decimal alcotest))
