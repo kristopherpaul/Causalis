@@ -1,0 +1,10 @@
+(library
+ (name causalis_data_source)
+ (public_name causalis.data_source)
+ (libraries causalis_core causalis_strategy csv decimal ptime)
+ (modules historical_csv))
+
+(test
+ (name historical_csv_test)
+ (modules historical_csv_test)
+ (libraries causalis_data_source alcotest ptime))
