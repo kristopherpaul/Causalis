@@ -89,6 +89,29 @@ module Reference_exec = struct
                   let next_state, output = step state input in
                   set_state_value node (Some next_state);
                   Some output)
+          | Signal.Internal.Window { source; size } ->
+              (match current_value source instant with
+              | None -> None
+              | Some input ->
+                  let previous =
+                    match state_value node with
+                    | Some history -> (Obj.obj history : Obj.t list)
+                    | None -> []
+                  in
+                  let next = previous @ [ input ] in
+                  let rec drop count values =
+                    if count = 0 then values
+                    else
+                      match values with
+                      | [] -> []
+                      | _ :: remaining -> drop (count - 1) remaining
+                  in
+                  let history =
+                    let length = List.length next in
+                    if length > size then drop (length - size) next else next
+                  in
+                  set_state_value node (Some (Obj.repr history));
+                  if List.length history = size then Some (Obj.repr history) else None)
           | Signal.Internal.Feedback target ->
               (match !target with
               | Some target -> current_value target instant

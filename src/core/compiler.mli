@@ -21,6 +21,7 @@ end
   type state_kind =
     | Delay_state
     | Scan_state
+    | Window_state
 
   type state_slot = {
     node_id : Signal.Internal.node_id;

@@ -21,6 +21,7 @@ type dependency = {
 type state_kind =
   | Delay_state
   | Scan_state
+  | Window_state
 
 type state_slot = {
   node_id : Signal.Internal.node_id;
@@ -99,6 +100,9 @@ let compile ~outputs =
               visit source;
               add_edge source node Instant
           | Signal.Internal.Scan { source; _ } ->
+              visit source;
+              add_edge source node Instant
+            | Signal.Internal.Window { source; _ } ->
               visit source;
               add_edge source node Instant
           | Signal.Internal.Feedback target ->
@@ -183,6 +187,9 @@ let compile ~outputs =
                 | Signal.Internal.Scan _ ->
                     (index + 1,
                      { node_id = Signal.Internal.id node; index; kind = Scan_state } :: slots)
+                | Signal.Internal.Window _ ->
+                  (index + 1,
+                   { node_id = Signal.Internal.id node; index; kind = Window_state } :: slots)
                 | _ -> (index, slots))
               (0, []) nodes
           in

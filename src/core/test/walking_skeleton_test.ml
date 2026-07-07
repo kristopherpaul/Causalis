@@ -85,6 +85,31 @@ let test_scan_pipeline () =
     [Some "0"; Some "1"; Some "3"; Some "6"] actual;
   Alcotest.(check (list (option string))) "scan state is per run" actual (run_once ())
 
+let test_window_pipeline () =
+  let input = Signal.Input.create ~name:"value" ~clock:Signal.Clock.logical () in
+  let output = Compiler.Output.create ~name:"window" (Signal.window 3 (Signal.input input)) in
+  let inputs = Runtime.Input_trace.of_values input [1; 2; 3; 4] in
+  let actual = Runtime.values output (run_output output inputs) in
+  let sums = List.map (Option.map (List.fold_left ( + ) 0)) actual in
+  Alcotest.(check (list (option int))) "window warmup and values"
+    [None; None; Some 6; Some 9] sums
+
+let test_sma_pipeline () =
+  let input = Signal.Input.create ~name:"price" ~clock:Signal.Clock.logical () in
+  let output = Compiler.Output.create ~name:"sma" (Signal.sma 3 (Signal.input input)) in
+  let inputs = Runtime.Input_trace.of_values input [price 1; price 2; price 3; price 4] in
+  let actual = price_strings (Runtime.values output (run_output output inputs)) in
+  Alcotest.(check (list (option string))) "simple moving average"
+    [None; None; Some "2"; Some "3"] actual
+
+let test_ema_pipeline () =
+  let input = Signal.Input.create ~name:"price" ~clock:Signal.Clock.logical () in
+  let output = Compiler.Output.create ~name:"ema" (Signal.ema 3 (Signal.input input)) in
+  let inputs = Runtime.Input_trace.of_values input [price 1; price 2; price 3; price 4] in
+  let actual = price_strings (Runtime.values output (run_output output inputs)) in
+  Alcotest.(check (list (option string))) "exponential moving average"
+    [Some "1"; Some "1.5"; Some "2.25"; Some "3.125"] actual
+
 let test_compiled_plan () =
   let input = Signal.Input.create ~name:"anchor" ~clock:Signal.Clock.logical () in
   let source = Signal.input input in
@@ -154,7 +179,10 @@ let () =
       "temporal semantics",
       [ Alcotest.test_case "pre" `Quick test_pre_pipeline;
         Alcotest.test_case "init" `Quick test_init_pipeline;
-        Alcotest.test_case "scan" `Quick test_scan_pipeline ];
+        Alcotest.test_case "scan" `Quick test_scan_pipeline;
+        Alcotest.test_case "window" `Quick test_window_pipeline;
+        Alcotest.test_case "sma" `Quick test_sma_pipeline;
+        Alcotest.test_case "ema" `Quick test_ema_pipeline ];
       "compiled semantic machine",
       [ Alcotest.test_case "compiled plan" `Quick test_compiled_plan;
         Alcotest.test_case "delayed feedback" `Quick test_delayed_feedback;

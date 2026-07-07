@@ -23,6 +23,9 @@ val map : ('a -> 'b) -> 'a t -> 'b t
 val pre : 'a t -> 'a t
 val init : 'a -> 'a t -> 'a t
 val scan : init:'s -> step:('s -> 'a -> 's * 'b) -> 'a t -> 'b t
+val window : int -> 'a t -> 'a list t
+val sma : int -> Value.Price.t t -> Value.Price.t t
+val ema : int -> Value.Price.t t -> Value.Price.t t
 val feedback : clock:Clock.t -> ('a t -> 'a t) -> 'a t
 val clock : 'a t -> Clock.t
 
@@ -41,6 +44,7 @@ module Internal : sig
         initial_state : Obj.t;
         step : Obj.t -> Obj.t -> Obj.t * Obj.t;
       }
+    | Window of { source : node; size : int }
     | Feedback of node option ref
 
   val node : 'a t -> node

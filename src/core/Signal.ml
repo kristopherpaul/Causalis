@@ -35,6 +35,7 @@ module Graph = struct
         initial_state : Obj.t;
         step : Obj.t -> Obj.t -> Obj.t * Obj.t;
       }
+    | Window of { source : node; size : int }
     | Feedback of node option ref
 
   and node = { id : node_id; clock : Clock.t; operation : operation }
@@ -89,6 +90,49 @@ let scan ~init:initial_state ~step signal =
            });
   }
 
+let window size signal =
+  if size <= 0 then invalid_arg "Signal.window: size must be positive"
+  else
+    {
+      node =
+        Graph.make (Graph.clock signal.node)
+          (Graph.Window { source = signal.node; size });
+    }
+
+let sma size signal =
+  let history = window size signal in
+  map
+    (fun prices ->
+      let total =
+        List.fold_left
+          (fun total price -> Decimal.(total + Value.Price.to_decimal price))
+          Decimal.zero prices
+      in
+      Value.Price.of_decimal Decimal.(total / of_int size))
+    history
+
+let ema period signal =
+  if period <= 0 then invalid_arg "Signal.ema: period must be positive"
+  else
+    let denominator = period + 1 in
+    let alpha = Decimal.(of_int 2 / of_int denominator) in
+    let one_minus_alpha = Decimal.(one - alpha) in
+    scan ~init:None
+      ~step:(fun previous price ->
+        let current =
+          match previous with
+          | None -> price
+          | Some previous ->
+              let value =
+                Decimal.(
+                  (alpha * Value.Price.to_decimal price)
+                  + (one_minus_alpha * Value.Price.to_decimal previous))
+              in
+              Value.Price.of_decimal value
+        in
+        Some current, current)
+      signal
+
 let feedback ~clock build =
   let target = ref None in
   let node = Graph.make clock (Graph.Feedback target) in
@@ -112,6 +156,7 @@ module Internal = struct
         initial_state : Obj.t;
         step : Obj.t -> Obj.t -> Obj.t * Obj.t;
       }
+    | Window of { source : node; size : int }
     | Feedback of node option ref
 
   let node signal = signal.node
