@@ -72,6 +72,16 @@ module Reference_exec = struct
               | None -> raise (Invalid_argument (string_of_int input_id)))
           | Signal.Internal.Map { source; apply } ->
               Option.map apply (current_value source instant)
+            | Signal.Internal.Map2 { left; right; apply } ->
+              (match current_value left instant, current_value right instant with
+              | Some left_value, Some right_value -> Some (apply left_value right_value)
+              | _ -> None)
+            | Signal.Internal.Select { condition; if_true; if_false } ->
+              (match current_value condition instant with
+                | Some condition ->
+                  if Obj.obj condition then current_value if_true instant
+                  else current_value if_false instant
+              | None -> None)
           | Signal.Internal.Pre _ -> state_value node
           | Signal.Internal.Init { initial; source } ->
               if instant = 0 then Some initial else current_value source instant

@@ -93,6 +93,18 @@ let compile ~outputs =
           | Signal.Internal.Map { source; _ } ->
               visit source;
               add_edge source node Instant
+            | Signal.Internal.Map2 { left; right; _ } ->
+              visit left;
+              visit right;
+              add_edge left node Instant;
+              add_edge right node Instant
+            | Signal.Internal.Select { condition; if_true; if_false } ->
+              visit condition;
+              visit if_true;
+              visit if_false;
+              add_edge condition node Instant;
+              add_edge if_true node Instant;
+              add_edge if_false node Instant
           | Signal.Internal.Pre source ->
               visit source;
               add_edge source node (Delayed 1)

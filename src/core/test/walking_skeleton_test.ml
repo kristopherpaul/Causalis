@@ -50,6 +50,39 @@ let test_pre_pipeline () =
   Alcotest.(check (list (option string))) "previous prices"
     [None; Some "1"; Some "2"; Some "3"] actual
 
+let test_map2_pipeline () =
+  let close = Signal.Input.create ~name:"close" ~clock:Signal.Clock.logical () in
+  let current = Signal.input close in
+  let momentum =
+    Signal.map2
+      (fun current previous -> Value.Price.(current - previous))
+      current (Signal.pre current)
+  in
+  let output = Compiler.Output.create ~name:"momentum" momentum in
+  let inputs = Runtime.Input_trace.of_values close [price 4; price 7; price 9] in
+  let actual = price_strings (Runtime.values output (run_output output inputs)) in
+  Alcotest.(check (list (option string))) "binary map with delayed input"
+    [None; Some "3"; Some "2"] actual
+
+let test_select_pipeline () =
+  let condition = Signal.Input.create ~name:"condition" ~clock:Signal.Clock.logical () in
+  let selected = Signal.Input.create ~name:"selected" ~clock:Signal.Clock.logical () in
+  let fallback = Signal.Input.create ~name:"fallback" ~clock:Signal.Clock.logical () in
+  let output =
+    Compiler.Output.create ~name:"choice"
+      (Signal.select (Signal.input condition) (Signal.input selected)
+         (Signal.pre (Signal.input fallback)))
+  in
+  let inputs =
+    Runtime.Input_trace.combine
+      [ Runtime.Input_trace.of_values condition [true; false; true];
+        Runtime.Input_trace.of_values selected [10; 20; 30];
+        Runtime.Input_trace.of_values fallback [1; 2; 3] ]
+  in
+  let actual = int_strings (Runtime.values output (run_output output inputs)) in
+  Alcotest.(check (list (option string))) "conditional evaluates chosen branch"
+    [Some "10"; Some "1"; Some "30"] actual
+
 let test_init_pipeline () =
   let close = Signal.Input.create ~name:"close" ~clock:Signal.Clock.logical () in
   let previous = Signal.pre (Signal.input close) in
@@ -178,6 +211,8 @@ let () =
       [ Alcotest.test_case "price map" `Quick test_price_map_pipeline ];
       "temporal semantics",
       [ Alcotest.test_case "pre" `Quick test_pre_pipeline;
+        Alcotest.test_case "map2" `Quick test_map2_pipeline;
+        Alcotest.test_case "select" `Quick test_select_pipeline;
         Alcotest.test_case "init" `Quick test_init_pipeline;
         Alcotest.test_case "scan" `Quick test_scan_pipeline;
         Alcotest.test_case "window" `Quick test_window_pipeline;

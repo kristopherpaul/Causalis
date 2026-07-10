@@ -28,6 +28,12 @@ module Graph = struct
     | Const of Obj.t
     | Input of int
     | Map of { source : node; apply : Obj.t -> Obj.t }
+    | Map2 of {
+        left : node;
+        right : node;
+        apply : Obj.t -> Obj.t -> Obj.t;
+      }
+    | Select of { condition : node; if_true : node; if_false : node }
     | Pre of node
     | Init of { initial : Obj.t; source : node }
     | Scan of {
@@ -50,6 +56,9 @@ module Graph = struct
   let const ~clock value = make clock (Const value)
   let input ~clock input_id = make clock (Input input_id)
   let map ~clock ~source ~apply = make clock (Map { source; apply })
+  let map2 ~clock ~left ~right ~apply = make clock (Map2 { left; right; apply })
+  let select ~clock ~condition ~if_true ~if_false =
+    make clock (Select { condition; if_true; if_false })
   let id node = node.id
   let clock node = node.clock
   let operation node = node.operation
@@ -63,6 +72,32 @@ let input descriptor = { node = Graph.input ~clock:(Input.clock descriptor) (Inp
 let map f signal =
   let apply value = Obj.repr (f (Obj.obj value)) in
   { node = Graph.map ~clock:(Graph.clock signal.node) ~source:signal.node ~apply }
+
+let ensure_same_clock left right =
+  if not (Clock.equal (Graph.clock left.node) (Graph.clock right.node)) then
+    invalid_arg "Signal: operands must use the same clock"
+
+let map2 f left right =
+  ensure_same_clock left right;
+  let apply left_value right_value =
+    Obj.repr (f (Obj.obj left_value) (Obj.obj right_value))
+  in
+  {
+    node =
+      Graph.map2 ~clock:(Graph.clock left.node) ~left:left.node ~right:right.node
+        ~apply;
+  }
+
+let zip left right = map2 (fun left_value right_value -> left_value, right_value) left right
+
+let select condition if_true if_false =
+  ensure_same_clock condition if_true;
+  ensure_same_clock condition if_false;
+  {
+    node =
+      Graph.select ~clock:(Graph.clock condition.node) ~condition:condition.node
+        ~if_true:if_true.node ~if_false:if_false.node;
+  }
 
 let pre signal =
   { node = Graph.make (Graph.clock signal.node) (Graph.Pre signal.node) }
@@ -149,6 +184,12 @@ module Internal = struct
     | Const of Obj.t
     | Input of int
     | Map of { source : node; apply : Obj.t -> Obj.t }
+    | Map2 of {
+        left : node;
+        right : node;
+        apply : Obj.t -> Obj.t -> Obj.t;
+      }
+    | Select of { condition : node; if_true : node; if_false : node }
     | Pre of node
     | Init of { initial : Obj.t; source : node }
     | Scan of {
