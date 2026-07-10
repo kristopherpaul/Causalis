@@ -2,7 +2,6 @@ type t
 
 type error =
   | Insufficient_cash
-  | Short_position
   | Missing_price of string
 
 val create : initial_cash:Causalis_strategy.Domain.Money.t -> t

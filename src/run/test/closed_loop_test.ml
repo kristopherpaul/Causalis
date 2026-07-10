@@ -74,7 +74,53 @@ let test_insufficient_cash_rejected () =
   | Error Causalis_accounting.Accounting_model.Insufficient_cash -> ()
   | _ -> Alcotest.fail "insufficient cash should be rejected"
 
+let test_short_position_lifecycle () =
+  let accounting =
+    Causalis_accounting.Accounting_model.create ~initial_cash:(money 100)
+  in
+  let quantity =
+    match Domain.Quantity.of_decimal (Decimal.of_int 10) with
+    | Ok quantity -> quantity
+    | Error _ -> Alcotest.fail "invalid trade quantity"
+  in
+  let market = market 10 in
+  let apply side instant =
+    let fill =
+      Causalis_execution.Fill.create ~instant ~instrument:"ABC" ~side ~quantity
+        ~price:(price 10) ~fee:Domain.Money.zero
+    in
+    match
+      Causalis_accounting.Accounting_model.apply_fills accounting market [ fill ]
+    with
+    | Ok () -> ()
+    | Error _ -> Alcotest.fail "short lifecycle fill failed"
+  in
+  apply Domain.Sell 0;
+  let short_observation =
+    match Causalis_accounting.Accounting_model.observe accounting market with
+    | Ok observation -> observation
+    | Error _ -> Alcotest.fail "short portfolio should be observable"
+  in
+  Alcotest.(check string) "signed short position" "-10"
+    (Domain.Position.to_string (Domain.portfolio_position short_observation "ABC"));
+  Alcotest.(check string) "short proceeds" "200"
+    (Domain.Money.to_string (Domain.portfolio_cash short_observation));
+  Alcotest.(check string) "short equity" "100"
+    (Domain.Money.to_string (Domain.portfolio_equity short_observation));
+  apply Domain.Buy 1;
+  let covered_observation =
+    match Causalis_accounting.Accounting_model.observe accounting market with
+    | Ok observation -> observation
+    | Error _ -> Alcotest.fail "covered portfolio should be observable"
+  in
+  Alcotest.(check string) "cover closes position" "0"
+    (Domain.Position.to_string (Domain.portfolio_position covered_observation "ABC"));
+  Alcotest.(check string) "cash after cover" "100"
+    (Domain.Money.to_string (Domain.portfolio_cash covered_observation))
+
 let () =
   Alcotest.run "closed_loop"
     [ ("trading runtime", [ Alcotest.test_case "threshold" `Quick test_threshold_closed_loop ]);
-      ("accounting", [ Alcotest.test_case "cash rejection" `Quick test_insufficient_cash_rejected ]) ]
+      ("accounting",
+       [ Alcotest.test_case "cash rejection" `Quick test_insufficient_cash_rejected;
+         Alcotest.test_case "short lifecycle" `Quick test_short_position_lifecycle ]) ]

@@ -17,6 +17,15 @@ module Quantity = struct
   let to_string value = Decimal.to_string value
 end
 
+module Position = struct
+  type t = Decimal.t
+
+  let zero = Decimal.zero
+  let of_decimal value = value
+  let to_decimal value = value
+  let to_string value = Decimal.to_string value
+end
+
 module Money = struct
   type t = Decimal.t
 
@@ -33,8 +42,8 @@ module Weight = struct
   let one = Decimal.one
 
   let of_decimal value =
-    if Decimal.(value < zero || value > one) then
-      Error "weight must be between zero and one"
+    if Decimal.(value < of_int (-1) || value > one) then
+      Error "weight must be between negative one and one"
     else
       Ok value
 
@@ -81,7 +90,7 @@ let market_prices market = market.prices
 type portfolio_observation = {
   cash : Money.t;
   equity : Money.t;
-  positions : (instrument * Quantity.t) list;
+  positions : (instrument * Position.t) list;
 }
 
 let portfolio_observation ~cash ~equity ~positions =
@@ -94,4 +103,4 @@ let portfolio_positions observation = observation.positions
 let portfolio_position observation instrument =
   match List.assoc_opt instrument observation.positions with
   | Some quantity -> quantity
-  | None -> Quantity.zero
+  | None -> Position.zero

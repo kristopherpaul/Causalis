@@ -5,7 +5,6 @@ type t = {
 
 type error =
   | Insufficient_cash
-  | Short_position
   | Missing_price of string
 
 let create ~initial_cash =
@@ -40,12 +39,7 @@ let observe state market =
       let positions =
         List.map
           (fun (instrument, quantity) ->
-            let quantity =
-              match Causalis_strategy.Domain.Quantity.of_decimal quantity with
-              | Ok quantity -> quantity
-              | Error message -> invalid_arg message
-            in
-            instrument, quantity)
+            instrument, Causalis_strategy.Domain.Position.of_decimal quantity)
           state.positions
       in
       Ok
@@ -80,7 +74,6 @@ let apply_fills state market fills =
               Decimal.(cash + notional - fee), Decimal.(current - quantity)
         in
         if Decimal.(next_cash < zero) then Error Insufficient_cash
-        else if Decimal.(next_position < zero) then Error Short_position
         else
           validate next_cash
             (set_position positions instrument next_position)

@@ -30,7 +30,7 @@ let rebalance allocation observation market =
             in
             let target_quantity = Decimal.(equity * target_weight / price_value) in
             let current_quantity =
-              Domain.Quantity.to_decimal
+              Domain.Position.to_decimal
                 (Domain.portfolio_position observation instrument)
             in
             let delta = Decimal.(target_quantity - current_quantity) in

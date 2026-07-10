@@ -13,6 +13,15 @@ module Quantity : sig
   val to_string : t -> string
 end
 
+module Position : sig
+  type t
+
+  val zero : t
+  val of_decimal : Decimal.t -> t
+  val to_decimal : t -> Decimal.t
+  val to_string : t -> string
+end
+
 module Money : sig
   type t
 
@@ -47,10 +56,10 @@ val market_prices : market -> (instrument * Causalis_core.Value.Price.t) list
 type portfolio_observation
 
 val portfolio_observation :
-  cash:Money.t -> equity:Money.t -> positions:(instrument * Quantity.t) list ->
+  cash:Money.t -> equity:Money.t -> positions:(instrument * Position.t) list ->
   portfolio_observation
 
 val portfolio_cash : portfolio_observation -> Money.t
 val portfolio_equity : portfolio_observation -> Money.t
-val portfolio_positions : portfolio_observation -> (instrument * Quantity.t) list
-val portfolio_position : portfolio_observation -> instrument -> Quantity.t
+val portfolio_positions : portfolio_observation -> (instrument * Position.t) list
+val portfolio_position : portfolio_observation -> instrument -> Position.t
