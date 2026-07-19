@@ -1,0 +1,16 @@
+(library
+ (name causalis_syntax)
+ (public_name causalis.syntax)
+ (modules strategy_parser))
+
+(library
+ (name causalis_syntax_ppx)
+ (public_name causalis.syntax.ppx)
+ (kind ppx_rewriter)
+ (modules strategy_ppx)
+ (libraries ppxlib causalis_syntax))
+
+(executable
+ (name strategy_wrap)
+ (public_name causalis-strategy-wrap)
+ (modules strategy_wrap))

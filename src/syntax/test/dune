@@ -1,0 +1,20 @@
+(rule
+ (target threshold_generated.ml)
+ (deps threshold.strategy)
+ (action
+  (with-stdout-to %{target}
+   (run %{exe:../strategy_wrap.exe} %{dep:threshold.strategy}))))
+
+(test
+ (name strategy_frontend_test)
+ (modules strategy_frontend_test threshold_generated)
+ (libraries
+  causalis_core
+  causalis_strategy
+  causalis_run
+  causalis_execution
+  causalis_accounting
+  causalis_syntax
+  decimal
+  alcotest)
+ (preprocess (pps causalis_syntax_ppx)))

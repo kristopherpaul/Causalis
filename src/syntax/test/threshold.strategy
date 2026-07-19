@@ -1,0 +1,8 @@
+strategy EmaTrend {
+  input close : price;
+  let fast = ema(2, close);
+  let slow = ema(4, close);
+  output exposure : weight =
+    if fast > slow then 100%
+    else -50%;
+}

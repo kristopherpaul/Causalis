@@ -10,6 +10,7 @@
  (depends
   (ocaml (>= 4.14))
   (dune (>= 3.11))
+  ppxlib
   decimal
   csv
     ptime
