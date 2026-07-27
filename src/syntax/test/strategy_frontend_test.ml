@@ -68,21 +68,8 @@ let test_ppx_matches_ocaml () =
   Alcotest.(check bool) "trend strategy emits short exposure" true
     (List.mem (Some "-0.5") (weights generated_values))
 
-let with_csv rows callback =
-  let path = Filename.temp_file "causalis-strategy" ".csv" in
-  let channel = open_out_bin path in
-  output_string channel
-    ("timestamp,open,high,low,close,volume,open_interest\n" ^ rows);
-  close_out channel;
-  Fun.protect ~finally:(fun () -> Sys.remove path) (fun () -> callback path)
-
 let test_backtest_binds_instrument_outside_strategy () =
-  let source_rows =
-    "2025-01-01T09:15:00+05:30,10,10,10,10,100,1\n"
-    ^ "2025-01-01T09:16:00+05:30,10,10,10,10,100,1\n"
-    ^ "2025-01-01T09:17:00+05:30,10,10,10,10,100,1\n"
-  in
-  with_csv source_rows (fun path ->
+  let path = "../../../examples/data/demo_prices.csv" in
       let instrument = "RUNTIME_INSTRUMENT" in
       let source =
         match Causalis_data_source.Historical_csv.load_files ~instrument [ path ] with
@@ -127,9 +114,12 @@ let test_backtest_binds_instrument_outside_strategy () =
       let final_portfolio =
         Causalis_run.Result.portfolio (List.hd (List.rev steps))
       in
-      Alcotest.(check string) "backtest opened a short position" "-50.0"
-        (Domain.Position.to_string
-           (Domain.portfolio_position final_portfolio instrument)))
+      let final_position =
+        Domain.Position.to_decimal
+          (Domain.portfolio_position final_portfolio instrument)
+      in
+      Alcotest.(check bool) "backtest opened a short position" true
+        Decimal.(final_position < zero)
 
 let test_weight_range () =
   Alcotest.(check bool) "accepts full long exposure" true

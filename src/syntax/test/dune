@@ -8,6 +8,7 @@
 (test
  (name strategy_frontend_test)
  (modules strategy_frontend_test threshold_generated)
+ (deps ../../../examples/data/demo_prices.csv)
  (libraries
   causalis_core
   causalis_strategy
