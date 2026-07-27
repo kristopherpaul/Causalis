@@ -1,0 +1,10 @@
+strategy EmaCrossover {
+  input close : price;
+
+  let fast = ema(12, close);
+  let slow = ema(26, close);
+
+  output exposure : weight =
+    if fast > slow then 100%
+    else 0%;
+}

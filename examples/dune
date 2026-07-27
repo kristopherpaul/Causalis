@@ -1,0 +1,37 @@
+(rule
+ (target ema_crossover_generated.ml)
+ (deps strategies/ema_crossover.strategy)
+ (action
+  (with-stdout-to %{target}
+   (run %{exe:../src/syntax/strategy_wrap.exe} %{dep:strategies/ema_crossover.strategy}))))
+
+(rule
+ (target ema_trend_filter_generated.ml)
+ (deps strategies/ema_trend_filter.strategy)
+ (action
+  (with-stdout-to %{target}
+   (run %{exe:../src/syntax/strategy_wrap.exe} %{dep:strategies/ema_trend_filter.strategy}))))
+
+(rule
+ (target ema_mean_reversion_generated.ml)
+ (deps strategies/ema_mean_reversion.strategy)
+ (action
+  (with-stdout-to %{target}
+   (run %{exe:../src/syntax/strategy_wrap.exe} %{dep:strategies/ema_mean_reversion.strategy}))))
+
+(rule
+ (target triple_ema_trend_generated.ml)
+ (deps strategies/triple_ema_trend.strategy)
+ (action
+  (with-stdout-to %{target}
+   (run %{exe:../src/syntax/strategy_wrap.exe} %{dep:strategies/triple_ema_trend.strategy}))))
+
+(library
+ (name causalis_example_strategies)
+ (modules
+  ema_crossover_generated
+  ema_trend_filter_generated
+  ema_mean_reversion_generated
+  triple_ema_trend_generated)
+ (libraries causalis_core causalis_strategy decimal)
+ (preprocess (pps causalis_syntax_ppx)))

@@ -1,0 +1,9 @@
+strategy EmaMeanReversion {
+  input close : price;
+
+  let mean = ema(20, close);
+
+  output exposure : weight =
+    if close < mean then 50%
+    else 0%;
+}

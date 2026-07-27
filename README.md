@@ -65,3 +65,14 @@ opam exec -- dune runtest src/syntax/test/strategy_frontend_test.exe
 The CSV is a small deterministic OHLCV sample with explicit RFC 3339 timestamps
 and timezone offsets. The test verifies that the same strategy output is bound
 to the runtime-selected instrument and can produce a short position.
+
+## Example strategies
+
+The [`examples/`](examples/README.md) directory contains ready-to-build EMA
+crossover, trend-filter, mean-reversion, and triple-EMA trend strategies. Each
+uses the same instrument-neutral `close` input and emits a signed target weight.
+Compile all examples with:
+
+```powershell
+opam exec -- dune build examples/causalis_example_strategies.cma
+```

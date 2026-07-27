@@ -1,0 +1,16 @@
+strategy TripleEmaTrend {
+  input close : price;
+
+  let fast = ema(8, close);
+  let medium = ema(21, close);
+  let slow = ema(55, close);
+
+  output exposure : weight =
+    if fast > medium then
+      if medium > slow then 100%
+      else 50%
+    else if fast < medium then
+      if medium < slow then -50%
+      else 0%
+    else 0%;
+}

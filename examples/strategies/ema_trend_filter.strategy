@@ -1,0 +1,9 @@
+strategy EmaTrendFilter {
+  input close : price;
+
+  let trend = ema(50, close);
+
+  output exposure : weight =
+    if close > trend then 100%
+    else -50%;
+}
